@@ -44,22 +44,6 @@ Pliki w folderze `database/`:
    docker compose down
    ```
 
-## Inicjalizacja bazy danych
-
-Po pierwszym uruchomieniu kontenera `db` zastosuj schemat:
-
-```bash
-docker compose exec -T db psql -U finance -d finance < database/schema.sql
-```
-
-Aby dodać dane testowe (tylko dla bazy dev/test):
-
-```bash
-docker compose exec -T db psql -U finance -d finance < database/seed_test_data.sql
-```
-
-Konta testowe mają zastępcze hasła, więc nie zalogujesz się na nie prawdziwym hasłem.
-
 ## Lokalne uruchamianie bez Dockera
 
 **Backend:**
