@@ -169,6 +169,26 @@ export function IconCheck() {
   )
 }
 
+export function IconWallet() {
+  return (
+    <Svg size={18}>
+      <rect x="3" y="6" width="18" height="13" rx="2.5" />
+      <path d="M3 10h18" />
+      <path d="M15.5 14.5h2" />
+    </Svg>
+  )
+}
+
+export function IconInfo() {
+  return (
+    <Svg size={14}>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 11v5" />
+      <path d="M12 8h.01" />
+    </Svg>
+  )
+}
+
 export function IconMenu() {
   return (
     <Svg size={20}>

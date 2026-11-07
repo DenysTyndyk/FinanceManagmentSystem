@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { IconCheck, IconEye, IconLogo } from '../components/Icons'
 
 const EMPTY = {
@@ -56,7 +57,8 @@ function Field({ id, label, error, hint, children }) {
   )
 }
 
-export default function Register({ onDone, onGoDashboard }) {
+export default function Register({ onDone }) {
+  const navigate = useNavigate()
   const [values, setValues] = useState(EMPTY)
   const [errors, setErrors] = useState({})
   const [showPassword, setShowPassword] = useState(false)
@@ -78,6 +80,7 @@ export default function Register({ onDone, onGoDashboard }) {
     setErrors(nextErrors)
     if (Object.keys(nextErrors).length > 0) return
     onDone(values.firstName.trim())
+    navigate('/')
   }
 
   return (
@@ -248,7 +251,7 @@ export default function Register({ onDone, onGoDashboard }) {
 
           <p className="reg-switch">
             Masz już konto?{' '}
-            <button type="button" className="linkish" onClick={onGoDashboard}>
+            <button type="button" className="linkish" onClick={() => navigate('/')}>
               Przejdź do pulpitu
             </button>
           </p>

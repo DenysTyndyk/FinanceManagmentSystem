@@ -1,48 +1,56 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import Sidebar from '../components/Sidebar'
 import {
-  IconArrowIn,
-  IconArrowOut,
   IconChevron,
   IconDots,
+  IconInfo,
   IconMenu,
   IconPlus,
   IconTrend,
+  IconWallet,
 } from '../components/Icons'
 import { convertFromPln, formatMoney, formatParts } from '../format'
+
+const CATEGORY_LIMITS = [
+  { id: 'jedzenie', label: 'Jedzenie na mieście', spent: 450, limit: 500, color: 'green' },
+  { id: 'zakupy', label: 'Zakupy spożywcze', spent: 800, limit: 1200, color: 'green' },
+  { id: 'transport', label: 'Transport', spent: 200, limit: 300, color: 'blue' },
+  { id: 'rozrywka', label: 'Rozrywka (Subskrypcje)', spent: 150, limit: 150, color: 'green' },
+]
 
 const TRANSACTIONS = [
   {
     id: 1,
     title: 'Biedronka - Zakupy spożywcze',
-    category: 'Jedzenie',
+    categoryId: 'zakupy',
+    category: 'Zakupy spożywcze',
     when: 'Dziś, 14:30',
     amount: -145.5,
-    kind: 'expense',
   },
   {
     id: 2,
-    title: 'Netflix Subscription',
-    category: 'Rozrywka',
-    when: 'Dziś, 09:00',
-    amount: -60,
-    kind: 'expense',
+    title: 'Pizzeria Napoli',
+    categoryId: 'jedzenie',
+    category: 'Jedzenie na mieście',
+    when: 'Wczoraj, 20:00',
+    amount: -120,
   },
   {
     id: 3,
-    title: 'Wynagrodzenie - Październik',
-    category: 'Przychód',
-    when: 'Wczoraj, 08:15',
-    amount: 8200,
-    kind: 'income',
+    title: 'Netflix (Subskrypcja)',
+    categoryId: 'rozrywka',
+    category: 'Rozrywka',
+    when: '24 Paź 2026',
+    amount: -60,
   },
   {
     id: 4,
     title: 'Orlen - Paliwo',
+    categoryId: 'transport',
     category: 'Transport',
     when: '23 Paź 2026',
     amount: -250,
-    kind: 'expense',
   },
 ]
 
@@ -50,61 +58,50 @@ const MORE_TRANSACTIONS = [
   {
     id: 5,
     title: 'Żabka - Kawa',
-    category: 'Jedzenie',
+    categoryId: 'jedzenie',
+    category: 'Jedzenie na mieście',
     when: 'Wczoraj, 18:40',
     amount: -18.9,
-    kind: 'expense',
   },
   {
     id: 6,
     title: 'Spotify',
+    categoryId: 'rozrywka',
     category: 'Rozrywka',
     when: '20 Paź 2026',
     amount: -29.99,
-    kind: 'expense',
   },
 ]
 
-const MONTH_BARS = [
-  { day: '1 Paź', weight: 42, solid: true },
-  { day: '3 Paź', weight: 70, solid: true },
-  { day: '5 Paź', weight: 36, solid: false },
-  { day: '8 Paź', weight: 96, solid: false },
-  { day: '10 Paź', weight: 86, solid: true },
-  { day: '12 Paź', weight: 74, solid: true },
-  { day: '15 Paź', weight: 24, solid: false },
-  { day: '17 Paź', weight: 64, solid: false },
-  { day: '19 Paź', weight: 100, solid: true },
-  { day: '22 Paź', weight: 58, solid: true },
-  { day: '24 Paź', weight: 30, solid: false },
-  { day: '26 Paź', weight: 76, solid: true },
-  { day: '28 Paź', weight: 28, solid: false },
-  { day: '31 Paź', weight: 54, solid: true },
-]
-
-const WEEK_BARS = [
-  { day: 'Pon', weight: 48, solid: true },
-  { day: 'Wt', weight: 76, solid: true },
-  { day: 'Śr', weight: 40, solid: false },
-  { day: 'Czw', weight: 92, solid: true },
-  { day: 'Pt', weight: 66, solid: true },
-  { day: 'Sob', weight: 28, solid: false },
-  { day: 'Nd', weight: 58, solid: true },
-]
+const TOTAL_EXPENSES = 3750
+const DAILY_LIMIT = 120
+const DAILY_SPENT = 18
 
 const CURRENCIES = ['PLN', 'EUR', 'USD']
 
-function barAmount(weight, weights, total) {
-  const sum = weights.reduce((acc, item) => acc + item, 0)
-  return Math.round((total * weight) / sum)
+const EMPTY_EXPENSE = {
+  categoryId: CATEGORY_LIMITS[0].id,
+  amount: '',
+  transactionDate: new Date().toISOString().slice(0, 10),
+  description: '',
 }
 
-export default function Dashboard({ firstName, onOpenRegister }) {
+function todayLabel(isoDate) {
+  const today = new Date().toISOString().slice(0, 10)
+  if (isoDate === today) return 'Dziś'
+  const [year, month, day] = isoDate.split('-')
+  return `${day}.${month}.${year}`
+}
+
+export default function Dashboard({ firstName }) {
   const [currency, setCurrency] = useState('PLN')
-  const [range, setRange] = useState('month')
   const [menu, setMenu] = useState(null)
   const [showAll, setShowAll] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [transactions, setTransactions] = useState(TRANSACTIONS)
+  const [isAddOpen, setAddOpen] = useState(false)
+  const [expenseForm, setExpenseForm] = useState(EMPTY_EXPENSE)
+  const [expenseError, setExpenseError] = useState('')
 
   useEffect(() => {
     if (!menu) return undefined
@@ -123,13 +120,47 @@ export default function Dashboard({ firstName, onOpenRegister }) {
     }
   }, [menu])
 
-  const balance = formatParts(convertFromPln(8450, currency))
-  const bars = range === 'month' ? MONTH_BARS : WEEK_BARS
-  const chartTotal = range === 'month' ? 3750 : 980
-  const visibleTransactions = showAll ? [...TRANSACTIONS, ...MORE_TRANSACTIONS] : TRANSACTIONS
+  const totalParts = formatParts(convertFromPln(TOTAL_EXPENSES, currency))
+  const visibleTransactions = showAll ? [...transactions, ...MORE_TRANSACTIONS] : transactions
 
   function toggleMenu(name) {
     setMenu((current) => (current === name ? null : name))
+  }
+
+  function updateExpenseField(name, value) {
+    setExpenseForm((current) => ({ ...current, [name]: value }))
+  }
+
+  function openAddExpense() {
+    setExpenseForm(EMPTY_EXPENSE)
+    setExpenseError('')
+    setAddOpen(true)
+  }
+
+  function submitExpense(event) {
+    event.preventDefault()
+    const amount = Number(expenseForm.amount)
+    if (!amount || amount <= 0) {
+      setExpenseError('Podaj kwotę większą niż 0.')
+      return
+    }
+    if (!expenseForm.transactionDate) {
+      setExpenseError('Podaj datę wydatku.')
+      return
+    }
+    const category = CATEGORY_LIMITS.find((cat) => cat.id === expenseForm.categoryId)
+    setTransactions((current) => [
+      {
+        id: Date.now(),
+        title: expenseForm.description.trim() || category.label,
+        categoryId: category.id,
+        category: category.label,
+        when: todayLabel(expenseForm.transactionDate),
+        amount: -amount,
+      },
+      ...current,
+    ])
+    setAddOpen(false)
   }
 
   return (
@@ -151,7 +182,7 @@ export default function Dashboard({ firstName, onOpenRegister }) {
               >
                 <IconMenu />
               </button>
-              <h1>Przegląd finansów</h1>
+              <h1>Analiza wydatków</h1>
             </div>
             <div className="subtitle">
               Październik 2026
@@ -172,15 +203,15 @@ export default function Dashboard({ firstName, onOpenRegister }) {
                 </button>
                 {menu === 'account' ? (
                   <div className="menu" role="menu">
-                    <button type="button" role="menuitem" onClick={onOpenRegister}>
+                    <Link to="/rejestracja" role="menuitem">
                       Utwórz nowe konto
-                    </button>
+                    </Link>
                   </div>
                 ) : null}
               </div>
             </div>
           </div>
-          <button type="button" className="btn-primary">
+          <button type="button" className="btn-primary" onClick={openAddExpense}>
             <IconPlus />
             Dodaj wydatek
           </button>
@@ -189,7 +220,7 @@ export default function Dashboard({ firstName, onOpenRegister }) {
         <section className="grid-top">
           <article className="card balance-card">
             <div className="card-head">
-              <h2 className="muted-label">Dostępne środki</h2>
+              <h2 className="muted-label">Całkowite wydatki</h2>
               <div className="popover" data-popover-root>
                 <button
                   type="button"
@@ -223,84 +254,66 @@ export default function Dashboard({ firstName, onOpenRegister }) {
             </div>
 
             <p className="balance-value">
-              <span>{balance.grouped}</span>
-              <span className="balance-cents">.{balance.cents}</span>
+              <span>{totalParts.grouped}</span>
+              <span className="balance-cents">.{totalParts.cents}</span>
             </p>
 
             <p className="trend-row">
               <span className="trend">
                 <IconTrend />
-                +12.5%
+                +5.2%
               </span>
-              <span className="muted">od zeszłego miesiąca</span>
+              <span className="muted">więcej niż we wrześniu</span>
             </p>
 
             <div className="divider" />
 
-            <div className="split-stats">
-              <div>
-                <p className="stat-label">Przychody</p>
-                <p className="stat-pos">{formatMoney(12200, currency, { signMode: 'spaced' })}</p>
+            <div className="limit-row">
+              <div className="limit-head">
+                <span className="stat-label">Dzienny limit wydatków</span>
+                <span>
+                  {formatMoney(DAILY_LIMIT, currency)} {currency}
+                </span>
               </div>
-              <div>
-                <p className="stat-label">Wydatki</p>
-                <p className="stat-neg">{formatMoney(-3750, currency, { signMode: 'spaced' })}</p>
+              <div className="limit-track">
+                <div className="limit-fill blue" style={{ width: `${(DAILY_SPENT / DAILY_LIMIT) * 100}%` }} />
               </div>
             </div>
           </article>
 
           <article className="card">
             <div className="card-head">
-              <h2>Wydatki w czasie</h2>
-              <div className="segment" role="tablist" aria-label="Zakres wykresu">
-                <button
-                  type="button"
-                  role="tab"
-                  aria-selected={range === 'week'}
-                  className={range === 'week' ? 'is-on' : ''}
-                  onClick={() => setRange('week')}
-                >
-                  Tydzień
-                </button>
-                <button
-                  type="button"
-                  role="tab"
-                  aria-selected={range === 'month'}
-                  className={range === 'month' ? 'is-on' : ''}
-                  onClick={() => setRange('month')}
-                >
-                  Miesiąc
-                </button>
-              </div>
+              <h2>Limity kategorii</h2>
+              <button type="button" className="btn-outline btn-sm">
+                Zarządzaj limitami
+              </button>
             </div>
+            <p className="muted" style={{ marginTop: 4 }}>
+              Śledzenie wydatków wobec ustalonych limitów
+            </p>
 
-            <div className="chart" aria-hidden="true">
-              <div className="chart-plot">
-                {bars.map((bar) => {
-                  const amount = barAmount(
-                    bar.weight,
-                    bars.map((item) => item.weight),
-                    chartTotal,
-                  )
-                  return (
-                    <div key={bar.day} className="bar-col">
-                      <div
-                        className={`bar ${bar.solid ? 'is-solid' : 'is-pale'}`}
-                        style={{ height: `${bar.weight}%` }}
-                      >
-                        <span className="bar-tip">
-                          {bar.day} · {formatMoney(amount, currency)} {currency}
-                        </span>
-                      </div>
+            <div className="limit-list">
+              {CATEGORY_LIMITS.map((cat) => {
+                const ratio = cat.spent / cat.limit
+                const isOver = ratio >= 0.8
+                const fillColor = isOver ? 'over' : cat.color
+                return (
+                  <div key={cat.id} className="limit-row">
+                    <div className="limit-head">
+                      <span>
+                        {cat.label}
+                        {isOver ? <IconInfo /> : null}
+                      </span>
+                      <span className={isOver ? 'limit-amount over' : 'limit-amount'}>
+                        {formatMoney(cat.spent, currency)} / {formatMoney(cat.limit, currency)} {currency}
+                      </span>
                     </div>
-                  )
-                })}
-              </div>
-              <div className="chart-axis">
-                {(range === 'month' ? ['1 Paź', '15 Paź', '31 Paź'] : ['Pon', 'Czw', 'Nd']).map((label) => (
-                  <span key={label}>{label}</span>
-                ))}
-              </div>
+                    <div className="limit-track">
+                      <div className={`limit-fill ${fillColor}`} style={{ width: `${Math.min(ratio, 1) * 100}%` }} />
+                    </div>
+                  </div>
+                )
+              })}
             </div>
           </article>
         </section>
@@ -308,33 +321,37 @@ export default function Dashboard({ firstName, onOpenRegister }) {
         <section className="grid-bottom">
           <article className="card">
             <div className="card-head">
-              <h2>Ostatnie transakcje</h2>
+              <h2>Ostatnie wydatki</h2>
               <button type="button" className="linkish" onClick={() => setShowAll((value) => !value)}>
-                {showAll ? 'Zwiń' : 'Zobacz wszystkie'}
+                {showAll ? 'Zwiń' : 'Zobacz całą historię'}
               </button>
             </div>
             <ul className="tx-list">
-              {visibleTransactions.map((item) => (
-                <li key={item.id} className="tx">
-                  <span className={`tx-icon ${item.kind}`}>
-                    {item.kind === 'income' ? <IconArrowIn /> : <IconArrowOut />}
-                  </span>
-                  <div>
-                    <p className="tx-title">{item.title}</p>
-                    <p className="tx-meta">
-                      {item.category}
-                      <span aria-hidden="true"> • </span>
-                      {item.when}
+              {visibleTransactions.map((item) => {
+                const cat = CATEGORY_LIMITS.find((c) => c.id === item.categoryId)
+                const isOver = cat ? cat.spent / cat.limit >= 0.8 : false
+                return (
+                  <li key={item.id} className="tx">
+                    <span className={`tx-icon ${isOver ? 'warn' : 'expense'}`}>
+                      <IconWallet />
+                    </span>
+                    <div>
+                      <p className="tx-title">
+                        {item.title}
+                        {isOver ? <span className="tx-badge">LIMIT &gt; 80%</span> : null}
+                      </p>
+                      <p className="tx-meta">
+                        {item.category}
+                        <span aria-hidden="true"> • </span>
+                        {item.when}
+                      </p>
+                    </div>
+                    <p className="tx-amount expense">
+                      {formatMoney(item.amount, currency, { signMode: 'minus' })} {currency}
                     </p>
-                  </div>
-                  <p className={`tx-amount ${item.kind}`}>
-                    {formatMoney(item.amount, currency, {
-                      signMode: item.kind === 'income' ? 'always' : 'minus',
-                    })}{' '}
-                    {currency}
-                  </p>
-                </li>
-              ))}
+                  </li>
+                )
+              })}
             </ul>
           </article>
 
@@ -389,6 +406,81 @@ export default function Dashboard({ firstName, onOpenRegister }) {
           </article>
         </section>
       </main>
+
+      {isAddOpen ? (
+        <div className="modal-backdrop" onClick={() => setAddOpen(false)}>
+          <div
+            className="modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="add-expense-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <h2 id="add-expense-title">Dodaj wydatek</h2>
+            <form onSubmit={submitExpense} noValidate>
+              <div className="field">
+                <label htmlFor="expense-category">Kategoria</label>
+                <select
+                  id="expense-category"
+                  value={expenseForm.categoryId}
+                  onChange={(event) => updateExpenseField('categoryId', event.target.value)}
+                >
+                  {CATEGORY_LIMITS.map((cat) => (
+                    <option key={cat.id} value={cat.id}>
+                      {cat.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="field">
+                <label htmlFor="expense-amount">Kwota ({currency})</label>
+                <input
+                  id="expense-amount"
+                  type="number"
+                  min="0.01"
+                  step="0.01"
+                  inputMode="decimal"
+                  value={expenseForm.amount}
+                  onChange={(event) => updateExpenseField('amount', event.target.value)}
+                />
+              </div>
+
+              <div className="field">
+                <label htmlFor="expense-date">Data</label>
+                <input
+                  id="expense-date"
+                  type="date"
+                  value={expenseForm.transactionDate}
+                  onChange={(event) => updateExpenseField('transactionDate', event.target.value)}
+                />
+              </div>
+
+              <div className="field">
+                <label htmlFor="expense-description">Opis (opcjonalnie)</label>
+                <input
+                  id="expense-description"
+                  type="text"
+                  placeholder="np. Biedronka - zakupy"
+                  value={expenseForm.description}
+                  onChange={(event) => updateExpenseField('description', event.target.value)}
+                />
+              </div>
+
+              {expenseError ? <p className="field-error">{expenseError}</p> : null}
+
+              <div className="modal-actions">
+                <button type="button" className="btn-outline" onClick={() => setAddOpen(false)}>
+                  Anuluj
+                </button>
+                <button type="submit" className="btn-primary">
+                  Dodaj
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      ) : null}
     </div>
   )
 }

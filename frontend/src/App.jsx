@@ -1,24 +1,19 @@
 import { useState } from 'react'
+import { Route, Routes } from 'react-router-dom'
 import Dashboard from './pages/Dashboard'
+import Reports from './pages/Reports'
 import Register from './pages/Register'
 
 function App() {
-  const [view, setView] = useState('dashboard')
   const [firstName, setFirstName] = useState('Viktoria')
 
-  if (view === 'register') {
-    return (
-      <Register
-        onDone={(name) => {
-          setFirstName(name)
-          setView('dashboard')
-        }}
-        onGoDashboard={() => setView('dashboard')}
-      />
-    )
-  }
-
-  return <Dashboard firstName={firstName} onOpenRegister={() => setView('register')} />
+  return (
+    <Routes>
+      <Route path="/" element={<Dashboard firstName={firstName} />} />
+      <Route path="/raporty" element={<Reports firstName={firstName} />} />
+      <Route path="/rejestracja" element={<Register onDone={setFirstName} />} />
+    </Routes>
+  )
 }
 
 export default App

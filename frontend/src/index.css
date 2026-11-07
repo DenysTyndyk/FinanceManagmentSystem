@@ -93,6 +93,7 @@ h2 {
   gap: 12px;
   width: 100%;
   text-align: left;
+  text-decoration: none;
   border: 0;
   background: transparent;
   color: #667085;
@@ -100,6 +101,7 @@ h2 {
   padding: 11px 12px;
   font-size: 14.5px;
   font-weight: 500;
+  cursor: pointer;
 }
 
 .nav-item:hover {
@@ -322,6 +324,74 @@ h1 {
   box-shadow: 0 1px 2px rgba(16, 24, 40, 0.08);
 }
 
+.limit-list {
+  margin-top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.limit-row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.limit-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #1c2434;
+}
+
+.limit-head span:first-child {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.limit-amount {
+  font-variant-numeric: tabular-nums;
+  color: #667085;
+}
+
+.limit-amount.over {
+  color: #ef4d5a;
+  font-weight: 700;
+}
+
+.limit-track {
+  height: 8px;
+  border-radius: 999px;
+  background: #eef1f6;
+  overflow: hidden;
+}
+
+.limit-fill {
+  height: 100%;
+  border-radius: 999px;
+}
+
+.limit-fill.green {
+  background: #179a54;
+}
+
+.limit-fill.blue {
+  background: #3b6ff5;
+}
+
+.limit-fill.over {
+  background: #ef4d5a;
+}
+
+.btn-sm {
+  padding: 6px 12px;
+  font-size: 13px;
+}
+
 .chart {
   margin-top: 22px;
 }
@@ -429,6 +499,11 @@ h1 {
 }
 
 .tx-icon.expense {
+  background: #eef1f6;
+  color: #667085;
+}
+
+.tx-icon.warn {
   background: #fdecef;
   color: #fb5c78;
 }
@@ -436,6 +511,18 @@ h1 {
 .tx-icon.income {
   background: #e7f8ef;
   color: #1aa35a;
+}
+
+.tx-badge {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #fdecef;
+  color: #fb5c78;
+  font-size: 11px;
+  font-weight: 700;
+  vertical-align: middle;
 }
 
 .tx-title {
@@ -585,19 +672,23 @@ h1 {
   right: 0;
 }
 
-.menu button {
+.menu button,
+.menu a {
   display: block;
   width: 100%;
   text-align: left;
+  text-decoration: none;
   border: 0;
   background: transparent;
   border-radius: 8px;
   padding: 9px 10px;
   color: #1c2434;
   font-size: 14px;
+  cursor: pointer;
 }
 
 .menu button:hover,
+.menu a:hover,
 .menu button.is-selected {
   background: #eef4ff;
   color: #2f62ea;
@@ -707,7 +798,8 @@ h1 {
   font-weight: 600;
 }
 
-.field input {
+.field input,
+.field select {
   width: 100%;
   border: 1px solid #e4e9f2;
   background: #f8fafc;
@@ -716,11 +808,43 @@ h1 {
   color: #1c2434;
 }
 
-.field input:focus {
+.field input:focus,
+.field select:focus {
   outline: none;
   border-color: #3b6ff5;
   background: #fff;
   box-shadow: 0 0 0 4px rgba(59, 111, 245, 0.14);
+}
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(16, 24, 40, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  z-index: 50;
+}
+
+.modal {
+  width: 100%;
+  max-width: 420px;
+  background: #fff;
+  border-radius: 18px;
+  padding: 24px;
+  box-shadow: 0 20px 40px rgba(16, 24, 40, 0.2);
+}
+
+.modal h2 {
+  margin: 0 0 16px;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 6px;
 }
 
 .field.has-error input {
