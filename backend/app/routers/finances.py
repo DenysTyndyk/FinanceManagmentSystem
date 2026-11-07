@@ -1,5 +1,9 @@
-from fastapi import APIRouter
-from app.schemas.finances import DashboardData
+from fastapi import APIRouter, Depends, HTTPException, status
+from app.schemas.finances import DashboardData, ExpenseCreate
+from sqlalchemy.orm import Session
+from app.database import get_db
+from app.models.transaction import Transaction
+from app.security import get_current_user_id
 
 router = APIRouter(prefix="/finances", tags=["Finances"])
 
@@ -55,4 +59,35 @@ def get_dashboard_data():
             "debtor_text": "zwraca Tobie",
             "debt_amount": 150.00,
         },
+    }
+
+@router.post("/expenses", status_code=status.HTTP_201_CREATED)
+def create_expense(
+    expense: ExpenseCreate, 
+    db: Session = Depends(get_db), 
+    user_id: int = Depends(get_current_user_id)
+):
+    # Tworzenie rekordu w bazie na podstawie przesłanych danych
+    new_transaction = Transaction(
+        household_id=expense.household_id,
+        user_id=user_id, # Pobierane bezpiecznie z tokena JWT, a nie z formularza
+        category_id=expense.category_id,
+        amount=expense.amount,
+        currency=expense.currency,
+        type="Expense",
+        # Dla uproszczenia (przy braku przewalutowania) kwota bazowa jest równa kwocie wydatku
+        base_amount=expense.amount,
+        base_currency=expense.currency,
+        exchange_rate=1.0,
+        transaction_date=expense.transaction_date,
+        description=expense.description
+    )
+    
+    db.add(new_transaction)
+    db.commit()
+    db.refresh(new_transaction)
+    
+    return {
+        "message": "Wydatek został pomyślnie dodany", 
+        "transaction_id": new_transaction.id
     }

@@ -1,5 +1,5 @@
 from app.database import Base, engine
-from app.models import user  # Zaimportowanie modeli, aby SQLAlchemy je zarejestrowało
+from app.models import user, transaction  # Zaimportowanie modeli, aby SQLAlchemy je zarejestrowało
 from app.routers import auth, finances
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware

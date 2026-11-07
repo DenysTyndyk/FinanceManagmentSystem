@@ -1,5 +1,6 @@
-from typing import List, Literal
-from pydantic import BaseModel
+from datetime import date
+from typing import List, Literal, Optional
+from pydantic import BaseModel, Field
 
 
 class TransactionItem(BaseModel):
@@ -28,3 +29,12 @@ class DashboardData(BaseModel):
     trend_percentage: float
     transactions: List[TransactionItem]
     group_summary: GroupSettlement
+
+
+class ExpenseCreate(BaseModel):
+    amount: float = Field(..., gt=0, description="Kwota wydatku musi być większa od zera")
+    currency: str = "PLN"
+    category_id: int
+    transaction_date: date
+    description: Optional[str] = None
+    household_id: int
