@@ -21,6 +21,15 @@ services:
       - "8000:8000"
     environment:
       DATABASE_URL: postgresql+psycopg://finance:finance@db:5432/finance
+      JWT_SECRET: ${JWT_SECRET:?Ustaw JWT_SECRET w pliku .env}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:5173}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173,http://127.0.0.1:5173}
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_FROM: ${SMTP_FROM:-FinManager <no-reply@finmanager.app>}
     depends_on:
       db:
         condition: service_healthy
@@ -29,6 +38,8 @@ services:
     build: ./frontend
     ports:
       - "5173:5173"
+    environment:
+      VITE_API_URL: ${VITE_API_URL:-http://localhost:8000}
     volumes:
       - ./frontend:/app
       - /app/node_modules

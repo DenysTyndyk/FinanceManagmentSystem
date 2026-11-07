@@ -185,6 +185,42 @@ h1 {
   min-height: 48px;
 }
 
+a.btn-primary,
+a.linkish {
+  text-decoration: none;
+}
+
+.btn-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.form-alert,
+.form-notice {
+  margin: 0 0 14px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  font-size: 13.5px;
+  line-height: 1.45;
+}
+
+.form-alert {
+  background: #fff1f3;
+  color: #be123c;
+  border: 1px solid #fecdd3;
+}
+
+.form-notice {
+  background: #ecfdf3;
+  color: #047857;
+  border: 1px solid #a7f3d0;
+}
+
+.form-aside-link {
+  margin: -4px 0 14px;
+  text-align: right;
+}
+
 .grid-top,
 .grid-bottom {
   display: grid;

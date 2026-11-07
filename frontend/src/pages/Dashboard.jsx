@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
 import Sidebar from '../components/Sidebar'
 import {
   IconChevron,
@@ -93,7 +92,7 @@ function todayLabel(isoDate) {
   return `${day}.${month}.${year}`
 }
 
-export default function Dashboard({ firstName }) {
+export default function Dashboard({ firstName, onLogout }) {
   const [currency, setCurrency] = useState('PLN')
   const [menu, setMenu] = useState(null)
   const [showAll, setShowAll] = useState(false)
@@ -203,9 +202,9 @@ export default function Dashboard({ firstName }) {
                 </button>
                 {menu === 'account' ? (
                   <div className="menu" role="menu">
-                    <Link to="/rejestracja" role="menuitem">
-                      Utwórz nowe konto
-                    </Link>
+                    <button type="button" role="menuitem" onClick={onLogout}>
+                      Wyloguj
+                    </button>
                   </div>
                 ) : null}
               </div>
