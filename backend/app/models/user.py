@@ -9,9 +9,9 @@ class User(Base):
   first_name = Column(String(100))
   last_name = Column(String(100))
   email = Column(String(255), unique=True, index=True, nullable=False)
-  role = Column(Enum("User", "Admin", "Manager", name="user_role", create_type=False), nullable=False, server_default="User")
+  role = Column(Enum("User", "Admin", "Manager", name="user_role"), nullable=False, server_default="User")
   status = Column(
-      Enum("PendingVerification", "Active", "Suspended", "Deactivated", name="user_status", create_type=False),
+      Enum("PendingVerification", "Active", "Suspended", "Deactivated", name="user_status"),
       nullable=False,
       server_default="PendingVerification",
   )

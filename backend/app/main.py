@@ -2,7 +2,7 @@ import logging
 
 from app import config
 from app.database import Base, engine
-from app.models import refresh_token, user, user_profile  # Zaimportowanie modeli, aby SQLAlchemy je zarejestrowało
+from app.models import category, household, receipt, recurring_subscription, refresh_token, transaction, user, user_profile, exchange_rate, transaction_split, receipt_item, settlement, household_member, household_invitation
 from app.routers import auth, finances
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
