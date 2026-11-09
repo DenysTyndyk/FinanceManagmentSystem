@@ -9,70 +9,20 @@ import {
   IconTrend,
   IconWallet,
 } from '../components/Icons'
+import { api, errorMessage } from '../api'
 import { convertFromPln, formatMoney, formatParts } from '../format'
 
+// dbId to id kategorii w bazie (tabela categories); tymczasowo na sztywno, dopóki API nie zwraca listy kategorii
 const CATEGORY_LIMITS = [
-  { id: 'jedzenie', label: 'Jedzenie na mieście', spent: 450, limit: 500, color: 'green' },
-  { id: 'zakupy', label: 'Zakupy spożywcze', spent: 800, limit: 1200, color: 'green' },
-  { id: 'transport', label: 'Transport', spent: 200, limit: 300, color: 'blue' },
-  { id: 'rozrywka', label: 'Rozrywka (Subskrypcje)', spent: 150, limit: 150, color: 'green' },
+  { id: 'jedzenie', dbId: 1, label: 'Jedzenie na mieście', limit: 500, color: 'green' },
+  { id: 'zakupy', dbId: 2, label: 'Zakupy spożywcze', limit: 1200, color: 'green' },
+  { id: 'transport', dbId: 3, label: 'Transport', limit: 300, color: 'blue' },
+  { id: 'rozrywka', dbId: 4, label: 'Rozrywka (Subskrypcje)', limit: 150, color: 'green' },
 ]
 
-const TRANSACTIONS = [
-  {
-    id: 1,
-    title: 'Biedronka - Zakupy spożywcze',
-    categoryId: 'zakupy',
-    category: 'Zakupy spożywcze',
-    when: 'Dziś, 14:30',
-    amount: -145.5,
-  },
-  {
-    id: 2,
-    title: 'Pizzeria Napoli',
-    categoryId: 'jedzenie',
-    category: 'Jedzenie na mieście',
-    when: 'Wczoraj, 20:00',
-    amount: -120,
-  },
-  {
-    id: 3,
-    title: 'Netflix (Subskrypcja)',
-    categoryId: 'rozrywka',
-    category: 'Rozrywka',
-    when: '24 Paź 2026',
-    amount: -60,
-  },
-  {
-    id: 4,
-    title: 'Orlen - Paliwo',
-    categoryId: 'transport',
-    category: 'Transport',
-    when: '23 Paź 2026',
-    amount: -250,
-  },
-]
+// Tymczasowo jeden portfel osobisty, dopóki rejestracja nie tworzy go automatycznie
+const PERSONAL_HOUSEHOLD_ID = 1
 
-const MORE_TRANSACTIONS = [
-  {
-    id: 5,
-    title: 'Żabka - Kawa',
-    categoryId: 'jedzenie',
-    category: 'Jedzenie na mieście',
-    when: 'Wczoraj, 18:40',
-    amount: -18.9,
-  },
-  {
-    id: 6,
-    title: 'Spotify',
-    categoryId: 'rozrywka',
-    category: 'Rozrywka',
-    when: '20 Paź 2026',
-    amount: -29.99,
-  },
-]
-
-const TOTAL_EXPENSES = 3750
 const DAILY_LIMIT = 120
 const DAILY_SPENT = 18
 
@@ -85,19 +35,12 @@ const EMPTY_EXPENSE = {
   description: '',
 }
 
-function todayLabel(isoDate) {
-  const today = new Date().toISOString().slice(0, 10)
-  if (isoDate === today) return 'Dziś'
-  const [year, month, day] = isoDate.split('-')
-  return `${day}.${month}.${year}`
-}
-
 export default function Dashboard({ firstName, onLogout }) {
   const [currency, setCurrency] = useState('PLN')
   const [menu, setMenu] = useState(null)
   const [showAll, setShowAll] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const [transactions, setTransactions] = useState(TRANSACTIONS)
+  const [dashboard, setDashboard] = useState(null)
   const [isAddOpen, setAddOpen] = useState(false)
   const [expenseForm, setExpenseForm] = useState(EMPTY_EXPENSE)
   const [expenseError, setExpenseError] = useState('')
@@ -119,8 +62,28 @@ export default function Dashboard({ firstName, onLogout }) {
     }
   }, [menu])
 
-  const totalParts = formatParts(convertFromPln(TOTAL_EXPENSES, currency))
-  const visibleTransactions = showAll ? [...transactions, ...MORE_TRANSACTIONS] : transactions
+  // Pobranie danych pulpitu zalogowanego użytkownika z API
+  function loadDashboard() {
+    return api.dashboard().then((result) => {
+      if (result.ok) setDashboard(result.data)
+    })
+  }
+
+  useEffect(() => {
+    loadDashboard()
+  }, [])
+
+  const transactions = dashboard?.transactions ?? []
+  const categoryLimits = CATEGORY_LIMITS.map((cat) => {
+    // API zwraca wydatki tylko dla części kategorii, resztę liczymy z listy transakcji
+    const fromApi = dashboard?.category_limits.find((item) => item.id === cat.id)
+    const spent = fromApi
+      ? fromApi.spent
+      : transactions.filter((item) => item.categoryId === cat.id).reduce((sum, item) => sum - item.amount, 0)
+    return { ...cat, spent }
+  })
+  const totalParts = formatParts(convertFromPln(dashboard?.expenses ?? 0, currency))
+  const visibleTransactions = showAll ? transactions : transactions.slice(0, 4)
 
   function toggleMenu(name) {
     setMenu((current) => (current === name ? null : name))
@@ -136,7 +99,7 @@ export default function Dashboard({ firstName, onLogout }) {
     setAddOpen(true)
   }
 
-  function submitExpense(event) {
+  async function submitExpense(event) {
     event.preventDefault()
     const amount = Number(expenseForm.amount)
     if (!amount || amount <= 0) {
@@ -148,18 +111,21 @@ export default function Dashboard({ firstName, onLogout }) {
       return
     }
     const category = CATEGORY_LIMITS.find((cat) => cat.id === expenseForm.categoryId)
-    setTransactions((current) => [
-      {
-        id: Date.now(),
-        title: expenseForm.description.trim() || category.label,
-        categoryId: category.id,
-        category: category.label,
-        when: todayLabel(expenseForm.transactionDate),
-        amount: -amount,
-      },
-      ...current,
-    ])
+    // Zapis wydatku w bazie, potem odświeżenie pulpitu z API
+    const result = await api.addExpense({
+      amount,
+      currency: 'PLN',
+      category_id: category.dbId,
+      household_id: PERSONAL_HOUSEHOLD_ID,
+      transaction_date: expenseForm.transactionDate,
+      description: expenseForm.description.trim() || null,
+    })
+    if (!result.ok) {
+      setExpenseError(errorMessage(result.data, 'Nie udało się zapisać wydatku.'))
+      return
+    }
     setAddOpen(false)
+    loadDashboard()
   }
 
   return (
@@ -292,7 +258,7 @@ export default function Dashboard({ firstName, onLogout }) {
             </p>
 
             <div className="limit-list">
-              {CATEGORY_LIMITS.map((cat) => {
+              {categoryLimits.map((cat) => {
                 const ratio = cat.spent / cat.limit
                 const isOver = ratio >= 0.8
                 const fillColor = isOver ? 'over' : cat.color
@@ -327,7 +293,7 @@ export default function Dashboard({ firstName, onLogout }) {
             </div>
             <ul className="tx-list">
               {visibleTransactions.map((item) => {
-                const cat = CATEGORY_LIMITS.find((c) => c.id === item.categoryId)
+                const cat = categoryLimits.find((c) => c.id === item.categoryId)
                 const isOver = cat ? cat.spent / cat.limit >= 0.8 : false
                 return (
                   <li key={item.id} className="tx">
