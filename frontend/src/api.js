@@ -73,4 +73,6 @@ export const api = {
     request('/auth/reset-password', { method: 'POST', body: { token, password } }),
   dashboard: () => authed('/finances/dashboard'),
   addExpense: (body) => authed('/finances/expenses', { method: 'POST', body }),
+  reports: (month) =>
+    authed(month ? `/finances/reports?month=${encodeURIComponent(month)}` : '/finances/reports'),
 }

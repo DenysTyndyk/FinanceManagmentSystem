@@ -27,17 +27,17 @@ INSERT INTO households (id, name, currency, is_personal) VALUES
 INSERT INTO users (id, first_name, last_name, email, role, status, password_hash,
                    email_verified_at, failed_login_attempts, locked_until,
                    personal_household_id, email_verification_token, email_verification_expires_at) VALUES
-    (1, 'Anna',   'Kowalska',     'anna@test.local',   'Admin',   'Active',              'test-hash-anna',
+    (1, 'Anna',   'Kowalska',     'anna@test.local',   'Admin',   'Active',              '$2b$12$ZIMrO//bTIHOzjAMs/QyBOIYhtWAWQ1UZrzHfuY0M9tvHY120eqzW',
         '2026-09-01 10:00:00+00', 0, NULL, 1, NULL, NULL),
-    (2, 'Piotr',  'Nowak',        'piotr@test.local',  'User',    'Active',              'test-hash-piotr',
+    (2, 'Piotr',  'Nowak',        'piotr@test.local',  'User',    'Active',              '$2b$12$ZIMrO//bTIHOzjAMs/QyBOIYhtWAWQ1UZrzHfuY0M9tvHY120eqzW',
         '2026-09-02 10:00:00+00', 0, NULL, 2, NULL, NULL),
-    (3, 'Maria',  'Wisniewska',   'maria@test.local',  'User',    'Active',              'test-hash-maria',
+    (3, 'Maria',  'Wisniewska',   'maria@test.local',  'User',    'Active',              '$2b$12$ZIMrO//bTIHOzjAMs/QyBOIYhtWAWQ1UZrzHfuY0M9tvHY120eqzW',
         '2026-09-03 10:00:00+00', 0, NULL, 3, NULL, NULL),
-    (4, 'Jan',    'Zielinski',    'jan@test.local',    'User',    'PendingVerification', 'test-hash-jan',
-        NULL, 0, NULL, 4, 'test-verify-token-jan', '2026-11-30 00:00:00+00'),
-    (5, 'Tomasz', 'Lis',          'tomasz@test.local', 'Manager', 'Suspended',           'test-hash-tomasz',
+    (4, 'Jan',    'Zielinski',    'jan@test.local',    'User',    'PendingVerification', '$2b$12$ZIMrO//bTIHOzjAMs/QyBOIYhtWAWQ1UZrzHfuY0M9tvHY120eqzW',
+        NULL, 0, NULL, 4, '94d3150dd072b6f05f4dfa3cd897919f9ed1c7c0852e4bac2bdcb88a320b697e', '2026-12-31 00:00:00+00'),
+    (5, 'Tomasz', 'Lis',          'tomasz@test.local', 'Manager', 'Suspended',           '$2b$12$ZIMrO//bTIHOzjAMs/QyBOIYhtWAWQ1UZrzHfuY0M9tvHY120eqzW',
         '2026-08-15 10:00:00+00', 0, NULL, 5, NULL, NULL),
-    (6, 'Ewa',    'Dabrowska',    'ewa@test.local',    'User',    'Active',              'test-hash-ewa',
+    (6, 'Ewa',    'Dabrowska',    'ewa@test.local',    'User',    'Active',              '$2b$12$ZIMrO//bTIHOzjAMs/QyBOIYhtWAWQ1UZrzHfuY0M9tvHY120eqzW',
         '2026-09-10 10:00:00+00', 5, '2026-12-31 00:00:00+00', 6, NULL, NULL);
 
 -- Profile użytkowników
@@ -119,7 +119,17 @@ INSERT INTO transactions (id, household_id, user_id, category_id, amount, curren
     (6, 7, 1, 7,  84.50, 'PLN', 'Expense',   84.50, 'PLN', 1,        NULL,         '2026-10-12', 'Biedronka - zakupy', 1, NULL, NULL),
     (7, 7, 2, 3,  69.00, 'PLN', 'Expense',   69.00, 'PLN', 1,        NULL,         '2026-10-15', 'Internet',          NULL, 2, NULL),
     (8, 7, 1, 11, 400.00, 'PLN', 'Expense',  400.00, 'PLN', 1,        NULL,         '2026-10-10', 'Ikea (usuniete)',   NULL, NULL, '2026-10-20 10:00:00+00'),
-    (9, 1, 1, 6, 500.00, 'PLN', 'Transfer', 500.00, 'PLN', 1,        NULL,         '2026-10-02', 'Przelew na oszczednosci', NULL, NULL, NULL);
+    (9, 1, 1, 6, 500.00, 'PLN', 'Transfer', 500.00, 'PLN', 1,        NULL,         '2026-10-02', 'Przelew na oszczednosci', NULL, NULL, NULL),
+    -- Transakcje na bieżący miesiąc (Listopad 2026) dla Anny (user_id = 1)
+    (10, 1, 1, 5, 7500.00, 'PLN', 'Income',  7500.00, 'PLN', 1,        NULL,         '2026-11-01', 'Pensja listopad',     NULL, NULL, NULL),
+    (11, 1, 1, 7,   85.50, 'PLN', 'Expense',   85.50, 'PLN', 1,        NULL,         '2026-11-02', 'Biedronka - zakupy',  NULL, NULL, NULL),
+    (12, 1, 1, 4,   43.00, 'PLN', 'Expense',   43.00, 'PLN', 1,        NULL,         '2026-11-05', 'Netflix',            NULL, 1,    NULL),
+    (13, 1, 1, 8,  215.00, 'PLN', 'Expense',  215.00, 'PLN', 1,        NULL,         '2026-11-07', 'Orlen - tankowanie',  NULL, NULL, NULL),
+    (14, 1, 1, 1,  160.00, 'PLN', 'Expense',  160.00, 'PLN', 1,        NULL,         '2026-11-10', 'Pizzeria Napoli',     NULL, NULL, NULL),
+    (15, 1, 1, 3,  380.00, 'PLN', 'Expense',  380.00, 'PLN', 1,        NULL,         '2026-11-12', 'Rachunek za prad',    NULL, NULL, NULL),
+    (16, 1, 1, 9,  490.00, 'PLN', 'Expense',  490.00, 'PLN', 1,        NULL,         '2026-11-14', 'Zakup sprzetu hobby', NULL, NULL, NULL),
+    (17, 1, 1, 1,   65.00, 'PLN', 'Expense',   65.00, 'PLN', 1,        NULL,         '2026-11-15', 'Kawiarnia i obiad',   NULL, NULL, NULL),
+    (18, 1, 1, 7,   45.00, 'PLN', 'Expense',   45.00, 'PLN', 1,        NULL,         '2026-11-15', 'Zabka - przekaski',   NULL, NULL, NULL);
 
 -- Podziały transakcji (udziały muszą sumować się do kwoty transakcji)
 INSERT INTO transaction_splits (id, transaction_id, user_id, percentage, share_amount) VALUES

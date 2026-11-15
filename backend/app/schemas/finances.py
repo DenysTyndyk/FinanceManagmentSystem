@@ -48,3 +48,35 @@ class DashboardData(BaseModel):
     transactions: List[TransactionItem]
     category_limits: List[CategoryLimitItem] # Nowe pole przekazujące limity z bazy
     group_summary: GroupSettlement
+
+
+class DayExpenseItem(BaseModel):
+    id: int
+    title: str
+    amount: float
+    category: str
+    category_id: Optional[str] = None
+
+
+class DailyReportItem(BaseModel):
+    date: str  # Format: YYYY-MM-DD
+    day: int
+    total_amount: float
+    count: int
+    transactions: List[DayExpenseItem]
+
+
+class ChartBarItem(BaseModel):
+    day: str  # Etykieta słupka (np. '1 Paź' lub 'Pon')
+    weight: int  # Waga słupka 0-100 dla wykresu
+    solid: bool = True
+    amount: float = 0.0
+
+
+class ReportsData(BaseModel):
+    month: str  # Format: YYYY-MM
+    total_expenses: float
+    max_daily_expense: float
+    daily_expenses: List[DailyReportItem]
+    chart_month_bars: List[ChartBarItem]
+    chart_week_bars: List[ChartBarItem]
