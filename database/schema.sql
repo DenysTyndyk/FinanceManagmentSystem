@@ -128,14 +128,14 @@ CREATE TABLE category_limits (
     user_id bigint NOT NULL REFERENCES users (id),
     household_id bigint NOT NULL REFERENCES households (id),
     category_id integer NOT NULL REFERENCES categories (id),
-    limit_amount decimal(12, 2) NOT NULL,
-    month_year varchar(7) NOT NULL,
+    limit_amount decimal(12, 2),
     threshold_percentage smallint NOT NULL DEFAULT 80,
     currency varchar(3) NOT NULL DEFAULT 'PLN',
     created_at timestamptz NOT NULL DEFAULT now(),
-    updated_at timestamptz NOT NULL DEFAULT now(),
-    UNIQUE (household_id, category_id, month_year)
+    updated_at timestamptz NOT NULL DEFAULT now()
 );
+-- Limit jest stały (bez miesięcy): jeden na parę (użytkownik, kategoria)
+CREATE UNIQUE INDEX category_limits_user_id_category_id_key ON category_limits (user_id, category_id);
 
 -- Kursy walut
 CREATE TABLE exchange_rates (

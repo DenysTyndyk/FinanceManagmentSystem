@@ -14,10 +14,10 @@ import { convertFromPln, formatMoney, formatParts } from '../format'
 
 // dbId to id kategorii w bazie (tabela categories); tymczasowo na sztywno, dopóki API nie zwraca listy kategorii
 const CATEGORY_LIMITS = [
-  { id: 'jedzenie', dbId: 1, label: 'Jedzenie na mieście', limit: 500, color: 'green' },
-  { id: 'zakupy', dbId: 2, label: 'Zakupy spożywcze', limit: 1200, color: 'green' },
-  { id: 'transport', dbId: 3, label: 'Transport', limit: 300, color: 'blue' },
-  { id: 'rozrywka', dbId: 4, label: 'Rozrywka (Subskrypcje)', limit: 150, color: 'green' },
+  { id: 'jedzenie', dbId: 1, label: 'Jedzenie na mieście', color: 'green' },
+  { id: 'zakupy', dbId: 2, label: 'Zakupy spożywcze', color: 'green' },
+  { id: 'transport', dbId: 3, label: 'Transport', color: 'blue' },
+  { id: 'rozrywka', dbId: 4, label: 'Rozrywka (Subskrypcje)', color: 'green' },
 ]
 
 // Tymczasowo jeden portfel osobisty, dopóki rejestracja nie tworzy go automatycznie
@@ -44,6 +44,11 @@ export default function Dashboard({ firstName, onLogout }) {
   const [isAddOpen, setAddOpen] = useState(false)
   const [expenseForm, setExpenseForm] = useState(EMPTY_EXPENSE)
   const [expenseError, setExpenseError] = useState('')
+  const [isLimitsOpen, setLimitsOpen] = useState(false)
+  // Edytowany limit (jeden naraz): { id: slug kategorii, value: tekst z pola }
+  const [limitDraft, setLimitDraft] = useState(null)
+  const [limitError, setLimitError] = useState('')
+  const [toast, setToast] = useState('')
 
   useEffect(() => {
     if (!menu) return undefined
@@ -66,6 +71,7 @@ export default function Dashboard({ firstName, onLogout }) {
   function loadDashboard() {
     return api.dashboard().then((result) => {
       if (result.ok) setDashboard(result.data)
+      return result.ok ? result.data : null
     })
   }
 
@@ -73,14 +79,20 @@ export default function Dashboard({ firstName, onLogout }) {
     loadDashboard()
   }, [])
 
+  // Krótki komunikat znika sam po 4 sekundach
+  useEffect(() => {
+    if (!toast) return undefined
+    const timer = setTimeout(() => setToast(''), 4000)
+    return () => clearTimeout(timer)
+  }, [toast])
+
   const transactions = dashboard?.transactions ?? []
+  // Kategorie z limitem; "spent" to suma prawdziwych wydatków z bieżącego miesiąca (liczona w API)
+  const activeLimits = (dashboard?.category_limits ?? []).filter((item) => item.limit != null)
+  // Wszystkie kategorie dla formularza i okna limitów; brak wpisu w API = brak limitu
   const categoryLimits = CATEGORY_LIMITS.map((cat) => {
-    // API zwraca wydatki tylko dla części kategorii, resztę liczymy z listy transakcji
-    const fromApi = dashboard?.category_limits.find((item) => item.id === cat.id)
-    const spent = fromApi
-      ? fromApi.spent
-      : transactions.filter((item) => item.categoryId === cat.id).reduce((sum, item) => sum - item.amount, 0)
-    return { ...cat, spent }
+    const fromApi = activeLimits.find((item) => item.id === cat.id)
+    return { ...cat, spent: fromApi?.spent ?? 0, limit: fromApi?.limit ?? null }
   })
   const totalParts = formatParts(convertFromPln(dashboard?.expenses ?? 0, currency))
   const visibleTransactions = showAll ? transactions : transactions.slice(0, 4)
@@ -96,7 +108,87 @@ export default function Dashboard({ firstName, onLogout }) {
   function openAddExpense() {
     setExpenseForm(EMPTY_EXPENSE)
     setExpenseError('')
+    setLimitDraft(null)
     setAddOpen(true)
+  }
+
+  function openLimits() {
+    setLimitDraft(null)
+    setLimitsOpen(true)
+  }
+
+  function editLimit(cat) {
+    setLimitDraft({ id: cat.id, value: cat.limit != null ? String(cat.limit) : '' })
+    setLimitError('')
+  }
+
+  async function saveLimit(cat, remove = false) {
+    const amount = Number(limitDraft?.value)
+    if (!remove && !(amount > 0)) {
+      setLimitError('Podaj limit większy niż 0.')
+      return
+    }
+    const result = remove
+      ? await api.deleteLimit(cat.dbId)
+      : await api.setLimit(cat.dbId, { limit_amount: amount, household_id: PERSONAL_HOUSEHOLD_ID })
+    if (!result.ok) {
+      setLimitError(errorMessage(result.data, 'Nie udało się zapisać limitu.'))
+      return
+    }
+    setLimitDraft(null)
+    loadDashboard()
+  }
+
+  function renderLimitLine(cat) {
+    const hasLimit = cat.limit != null
+    if (limitDraft?.id !== cat.id) {
+      return (
+        <p className="hint">
+          {hasLimit
+            ? `Limit: ${formatMoney(cat.spent, 'PLN')} / ${formatMoney(cat.limit, 'PLN')} PLN (${Math.round((cat.spent / cat.limit) * 100)}%)`
+            : 'Brak limitu'}
+          {' · '}
+          <button type="button" className="linkish" onClick={() => editLimit(cat)}>
+            {hasLimit ? 'Zmień' : 'Ustaw limit'}
+          </button>
+        </p>
+      )
+    }
+    return (
+      <>
+        <div className="limit-edit">
+          <input
+            type="number"
+            min="0.01"
+            step="0.01"
+            inputMode="decimal"
+            aria-label={`Limit dla kategorii ${cat.label} (PLN)`}
+            autoFocus
+            value={limitDraft.value}
+            onChange={(event) => setLimitDraft({ id: cat.id, value: event.target.value })}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') {
+                event.preventDefault()
+                saveLimit(cat)
+              }
+            }}
+          />
+          <span>PLN</span>
+          <button type="button" className="btn-primary btn-sm" onClick={() => saveLimit(cat)}>
+            Zapisz
+          </button>
+          {hasLimit ? (
+            <button type="button" className="btn-outline btn-sm" onClick={() => saveLimit(cat, true)}>
+              Usuń
+            </button>
+          ) : null}
+          <button type="button" className="linkish" onClick={() => setLimitDraft(null)}>
+            Anuluj
+          </button>
+        </div>
+        {limitError ? <p className="field-error">{limitError}</p> : null}
+      </>
+    )
   }
 
   async function submitExpense(event) {
@@ -125,7 +217,14 @@ export default function Dashboard({ firstName, onLogout }) {
       return
     }
     setAddOpen(false)
-    loadDashboard()
+    const spentBefore = activeLimits.find((item) => item.id === category.id)?.spent ?? 0
+    const data = await loadDashboard()
+    const after = data?.category_limits.find((item) => item.id === category.id && item.limit != null)
+    if (after) {
+      const ratio = after.spent / after.limit
+      const crossed = [0.6, 0.8, 1].some((t) => spentBefore / after.limit < t && ratio >= t)
+      if (crossed) setToast(`${after.label}: ${Math.round(ratio * 100)}% limitu`)
+    }
   }
 
   return (
@@ -249,7 +348,7 @@ export default function Dashboard({ firstName, onLogout }) {
           <article className="card">
             <div className="card-head">
               <h2>Limity kategorii</h2>
-              <button type="button" className="btn-outline btn-sm">
+              <button type="button" className="btn-outline btn-sm" onClick={openLimits}>
                 Zarządzaj limitami
               </button>
             </div>
@@ -257,29 +356,44 @@ export default function Dashboard({ firstName, onLogout }) {
               Śledzenie wydatków wobec ustalonych limitów
             </p>
 
-            <div className="limit-list">
-              {categoryLimits.map((cat) => {
-                const ratio = cat.spent / cat.limit
-                const isOver = ratio >= 0.8
-                const fillColor = isOver ? 'over' : cat.color
-                return (
-                  <div key={cat.id} className="limit-row">
-                    <div className="limit-head">
-                      <span>
-                        {cat.label}
-                        {isOver ? <IconInfo /> : null}
-                      </span>
-                      <span className={isOver ? 'limit-amount over' : 'limit-amount'}>
-                        {formatMoney(cat.spent, currency)} / {formatMoney(cat.limit, currency)} {currency}
-                      </span>
+            {dashboard && activeLimits.length === 0 ? (
+              <div className="limit-empty">
+                <p className="muted">Nie masz jeszcze żadnych limitów.</p>
+                <button type="button" className="btn-primary btn-sm" onClick={openLimits}>
+                  Ustaw pierwszy limit
+                </button>
+              </div>
+            ) : (
+              <div className="limit-list">
+                {activeLimits.map((cat) => {
+                  const ratio = cat.spent / cat.limit
+                  // Kolor paska: <60% zielony, 60–79% żółty, od 80% czerwony z ikoną ostrzeżenia
+                  const level = ratio >= 0.8 ? 'over' : ratio >= 0.6 ? 'warn' : 'green'
+                  const isOver = level === 'over'
+                  return (
+                    <div key={cat.id} className="limit-row">
+                      <div className="limit-head">
+                        <span>
+                          {cat.label}
+                          {isOver ? <IconInfo /> : null}
+                        </span>
+                        <span className={isOver ? 'limit-amount over' : 'limit-amount'}>
+                          {formatMoney(cat.spent, currency)} / {formatMoney(cat.limit, currency)} {currency}
+                        </span>
+                      </div>
+                      <div className="limit-track">
+                        <div className={`limit-fill ${level}`} style={{ width: `${Math.min(ratio, 1) * 100}%` }} />
+                      </div>
+                      {cat.spent > cat.limit ? (
+                        <p className="field-error">
+                          Przekroczono o {formatMoney(cat.spent - cat.limit, currency)} {currency}
+                        </p>
+                      ) : null}
                     </div>
-                    <div className="limit-track">
-                      <div className={`limit-fill ${fillColor}`} style={{ width: `${Math.min(ratio, 1) * 100}%` }} />
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
+                  )
+                })}
+              </div>
+            )}
           </article>
         </section>
 
@@ -293,8 +407,8 @@ export default function Dashboard({ firstName, onLogout }) {
             </div>
             <ul className="tx-list">
               {visibleTransactions.map((item) => {
-                const cat = categoryLimits.find((c) => c.id === item.categoryId)
-                const isOver = cat ? cat.spent / cat.limit >= 0.8 : false
+                const cat = activeLimits.find((c) => c.id === item.categoryId)
+                const isOver = cat != null && cat.spent / cat.limit >= 0.8
                 return (
                   <li key={item.id} className="tx">
                     <span className={`tx-icon ${isOver ? 'warn' : 'expense'}`}>
@@ -396,6 +510,7 @@ export default function Dashboard({ firstName, onLogout }) {
                     </option>
                   ))}
                 </select>
+                {renderLimitLine(categoryLimits.find((cat) => cat.id === expenseForm.categoryId))}
               </div>
 
               <div className="field">
@@ -443,6 +558,35 @@ export default function Dashboard({ firstName, onLogout }) {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      ) : null}
+
+      <div className="toast-region" role="status" aria-live="polite">
+        {toast ? <div className="toast">{toast}</div> : null}
+      </div>
+
+      {isLimitsOpen ? (
+        <div className="modal-backdrop" onClick={() => setLimitsOpen(false)}>
+          <div
+            className="modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="limits-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <h2 id="limits-title">Zarządzaj limitami</h2>
+            {categoryLimits.map((cat) => (
+              <div key={cat.id} className="field">
+                <strong>{cat.label}</strong>
+                {renderLimitLine(cat)}
+              </div>
+            ))}
+            <div className="modal-actions">
+              <button type="button" className="btn-outline" onClick={() => setLimitsOpen(false)}>
+                Zamknij
+              </button>
+            </div>
           </div>
         </div>
       ) : null}

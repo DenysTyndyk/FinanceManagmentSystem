@@ -149,10 +149,10 @@ INSERT INTO settlements (id, household_id, payer_id, receiver_id, amount, curren
     (1, 7, 2, 1, 30.00, 'PLN', '2026-10-22 12:00:00+00');
 
 -- Limity kategorii
-INSERT INTO category_limits (id, user_id, household_id, category_id, limit_amount, month_year,
+INSERT INTO category_limits (id, user_id, household_id, category_id, limit_amount,
                              threshold_percentage, currency) VALUES
-    (1, 1, 7, 7, 800.00,  '2026-10', 80, 'PLN'),
-    (2, 2, 2, 1, 1000.00, '2026-10', 90, 'PLN');
+    (1, 1, 7, 7, 800.00,  80, 'PLN'),
+    (2, 2, 2, 1, 1000.00, 90, 'PLN');
 
 -- Przesuwa sekwencje identity za jawnie użyte id, aby nowe wstawienia nie kolidowały
 SELECT setval(pg_get_serial_sequence('households', 'id'),              (SELECT MAX(id) FROM households));

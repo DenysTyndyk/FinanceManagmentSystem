@@ -1,5 +1,5 @@
 from app.database import Base
-from sqlalchemy import BigInteger, Boolean, Column, DateTime, Enum, ForeignKey, Integer, String, func
+from sqlalchemy import BigInteger, Boolean, Column, DateTime, Enum, ForeignKey, Integer, Numeric, String, func
 
 
 class Category(Base):
@@ -27,8 +27,7 @@ class CategoryLimit(Base):
     user_id = Column(BigInteger, ForeignKey("users.id"), nullable=False)
     household_id = Column(BigInteger, ForeignKey("households.id"), nullable=False)
     category_id = Column(Integer, ForeignKey("categories.id"), nullable=False)
-    limit_amount = Column(Integer, nullable=False) # Zgodnie z decimal w schemacie, tu rzutujemy na float/int wg potrzeb
-    month_year = Column(String(7), nullable=False)
+    limit_amount = Column(Numeric(12, 2), nullable=True) # Null oznacza brak limitu dla kategorii
     threshold_percentage = Column(Integer, nullable=False, server_default="80")
     currency = Column(String(3), nullable=False, server_default="PLN")
     created_at = Column(DateTime(timezone=True), server_default=func.now())

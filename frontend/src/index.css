@@ -419,6 +419,10 @@ a.linkish {
   background: #3b6ff5;
 }
 
+.limit-fill.warn {
+  background: #f5b40b;
+}
+
 .limit-fill.over {
   background: #ef4d5a;
 }
@@ -1470,5 +1474,49 @@ a.linkish {
   color: #64748b;
   font-size: 13px;
   margin: 0;
+}
+
+.toast-region {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  transform: translateX(-50%);
+  max-width: calc(100vw - 32px);
+  z-index: 60;
+}
+
+.toast {
+  background: #1c2434;
+  color: #fff;
+  padding: 12px 18px;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 600;
+  box-shadow: 0 10px 24px rgba(16, 24, 40, 0.25);
+}
+
+/* Pusty stan karty limitów: zachęta do ustawienia pierwszego limitu */
+.limit-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.limit-edit {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  font-size: 13.5px;
+}
+
+.field .limit-edit input {
+  flex: 1 1 100px;
+  width: auto;
+  min-width: 0;
+  padding: 8px 10px;
 }
 

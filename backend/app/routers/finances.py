@@ -5,7 +5,7 @@ from app.database import get_db
 from app.models.category import Category, CategoryLimit
 from app.models.transaction import Transaction
 from app.models.user import User
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from app.schemas.finances import (
     ChartBarItem,
     DailyReportItem,
@@ -13,6 +13,7 @@ from app.schemas.finances import (
     DayExpenseItem,
     ExpenseCreate,
     GroupSettlement,
+    LimitUpdate,
     ReportsData,
     TransactionItem,
     CategoryLimitItem,
@@ -89,28 +90,24 @@ def get_dashboard_data(
         if tx.type == "Expense":
             category_spending[cat_slug] = category_spending.get(cat_slug, 0) + float(tx.amount)
 
+    # Stałe limity użytkownika (obowiązują, dopóki ich nie zmieni); kategorie bez limitu nie wrócą z tego zapytania
+    limits = (
+        db.query(CategoryLimit, Category.slug, Category.name)
+        .join(Category, CategoryLimit.category_id == Category.id)
+        .filter(CategoryLimit.user_id == current_user.id)
+        .all()
+    )
+
+    # shortcut: kolor zawsze "green", bo kolumny koloru nie ma w category_limits; przenieść do bazy, gdy będzie potrzebne
     category_limits = [
         CategoryLimitItem(
-            id="jedzenie", 
-            label="Jedzenie na mieście", 
-            spent=category_spending.get("jedzenie", 0.0), 
-            limit=500.0, 
-            color="green"
-        ),
-        CategoryLimitItem(
-            id="zakupy", 
-            label="Zakupy spożywcze", 
-            spent=category_spending.get("zakupy", 0.0), 
-            limit=1200.0, 
-            color="green"
-        ),
-        CategoryLimitItem(
-            id="transport", 
-            label="Transport", 
-            spent=category_spending.get("transport", 0.0), 
-            limit=300.0, 
-            color="blue"
+            id=cat_slug,
+            label=cat_name,
+            spent=category_spending.get(cat_slug, 0.0),
+            limit=float(limit.limit_amount) if limit.limit_amount is not None else None,
+            color="green",
         )
+        for limit, cat_slug, cat_name in limits
     ]
 
     # Mock dla rozliczeń grupowych (zgodnie z poprzednim zachowaniem)
@@ -211,6 +208,54 @@ def create_expense(
     db.refresh(new_tx)
     
     return {"message": "Wydatek został pomyślnie dodany", "transaction_id": new_tx.id}
+
+
+@router.put("/limits/{category_id}")
+def set_category_limit(
+    category_id: int,
+    payload: LimitUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Ustawia lub zmienia stały limit użytkownika dla kategorii wydatków."""
+    category = db.get(Category, category_id)
+    if (
+        category is None
+        or category.type != "Expense"
+        or not (category.is_system or category.user_id == current_user.id)
+    ):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Nie znaleziono kategorii.")
+
+    limit = (
+        db.query(CategoryLimit)
+        .filter(CategoryLimit.user_id == current_user.id, CategoryLimit.category_id == category_id)
+        .first()
+    )
+    if limit is None:
+        limit = CategoryLimit(
+            user_id=current_user.id,
+            household_id=payload.household_id,
+            category_id=category_id,
+        )
+        db.add(limit)
+    limit.limit_amount = payload.limit_amount
+    db.commit()
+
+    return {"message": "Limit został zapisany", "limit": float(limit.limit_amount)}
+
+
+@router.delete("/limits/{category_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_category_limit(
+    category_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Usuwa limit użytkownika dla kategorii (brak wpisu = brak limitu)."""
+    db.query(CategoryLimit).filter(
+        CategoryLimit.user_id == current_user.id,
+        CategoryLimit.category_id == category_id,
+    ).delete()
+    db.commit()
 
 
 @router.get("/reports", response_model=ReportsData)

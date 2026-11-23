@@ -73,6 +73,8 @@ export const api = {
     request('/auth/reset-password', { method: 'POST', body: { token, password } }),
   dashboard: () => authed('/finances/dashboard'),
   addExpense: (body) => authed('/finances/expenses', { method: 'POST', body }),
+  setLimit: (categoryId, body) => authed(`/finances/limits/${categoryId}`, { method: 'PUT', body }),
+  deleteLimit: (categoryId) => authed(`/finances/limits/${categoryId}`, { method: 'DELETE' }),
   reports: (month) =>
     authed(month ? `/finances/reports?month=${encodeURIComponent(month)}` : '/finances/reports'),
 }

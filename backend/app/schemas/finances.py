@@ -1,6 +1,7 @@
 from typing import List, Literal, Optional
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from datetime import date
+from decimal import Decimal
 
 
 class ExpenseCreate(BaseModel):
@@ -36,8 +37,13 @@ class CategoryLimitItem(BaseModel):
     id: str
     label: str
     spent: float
-    limit: float
+    limit: Optional[float] = None
     color: str
+
+
+class LimitUpdate(BaseModel):
+    limit_amount: Decimal = Field(gt=0, max_digits=12, decimal_places=2)
+    household_id: int
 
 
 class DashboardData(BaseModel):
