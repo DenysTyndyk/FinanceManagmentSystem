@@ -1,5 +1,5 @@
-from typing import List, Literal, Optional
-from pydantic import BaseModel, Field
+from typing import Annotated, List, Literal, Optional
+from pydantic import BaseModel, Field, StringConstraints
 from datetime import date
 from decimal import Decimal
 
@@ -39,6 +39,29 @@ class CategoryLimitItem(BaseModel):
     spent: float
     limit: Optional[float] = None
     color: str
+
+
+class CategoryItem(BaseModel):
+    id: int
+    slug: str
+    name: str
+    usage_count: int = 0  # liczba wydatków użytkownika w tej kategorii
+    is_own: bool = False  # własna kategoria użytkownika (nie systemowa)
+    color: Optional[str] = None  # kolor w formacie #RRGGBB
+
+
+class CategoryCreate(BaseModel):
+    name: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=100)]
+    color: str = Field(pattern=r"^#[0-9a-fA-F]{6}$")  # kolumna categories.color to varchar(7)
+
+
+class ExpenseListItem(BaseModel):
+    id: int
+    title: str
+    category: str
+    category_id: int
+    transaction_date: date
+    amount: float
 
 
 class LimitUpdate(BaseModel):

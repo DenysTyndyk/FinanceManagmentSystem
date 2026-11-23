@@ -1,9 +1,10 @@
 import { NavLink } from 'react-router-dom'
-import { IconChart, IconGrid, IconList, IconLogo, IconSettings, IconUsers } from './Icons'
+import { IconCalendar, IconChart, IconGrid, IconList, IconLogo, IconSettings, IconUsers } from './Icons'
 
 const ITEMS = [
   { to: '/', label: 'Pulpit', icon: IconGrid, end: true },
   { to: '/wydatki', label: 'Wydatki osobiste', icon: IconList },
+  { to: '/subskrypcje', label: 'Subskrypcje', icon: IconCalendar },
   { to: '/grupy', label: 'Grupy i podziały', icon: IconUsers },
   { to: '/raporty', label: 'Raporty', icon: IconChart },
 ]

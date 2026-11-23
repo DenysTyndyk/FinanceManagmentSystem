@@ -22,7 +22,11 @@ Migracje dla istniejącej bazy leżą w `database/migrations/` (uruchamiane ręc
 
 ```bash
 psql "postgresql://finance:finance@localhost:5432/finance" -f database/migrations/001_auth_sessions.sql
+psql "postgresql://finance:finance@localhost:5432/finance" -f database/migrations/002_permanent_category_limits.sql
+psql "postgresql://finance:finance@localhost:5432/finance" -f database/migrations/003_default_categories.sql
 ```
+
+Migracja 003 tworzy domyślną listę kategorii wydatków — uruchom ją także na świeżej bazie (po `schema.sql` i seedzie).
 
 ## Uwierzytelnianie
 

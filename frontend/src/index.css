@@ -1476,6 +1476,93 @@ a.linkish {
   margin: 0;
 }
 
+.chip-bar {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+
+.chip-bar.is-expanded {
+  flex-wrap: wrap;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  white-space: nowrap;
+  border: 1px solid #e4e9f2;
+  background: #fff;
+  color: #1c2434;
+  border-radius: 999px;
+  padding: 7px 14px;
+  font-size: 13.5px;
+  font-weight: 600;
+}
+
+.chip:hover {
+  background: #f3f6fb;
+}
+
+.chip[aria-pressed='true'] {
+  background: #3b6ff5;
+  border-color: #3b6ff5;
+  color: #fff;
+}
+
+.chip-ghost {
+  border-style: dashed;
+  color: #3b6ff5;
+}
+
+.chip-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.8);
+}
+
+.field input.color-input {
+  width: 64px;
+  height: 40px;
+  padding: 4px;
+  cursor: pointer;
+}
+
+.chip-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.chip-edit {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  color: #667085;
+}
+
+.chip-edit:hover {
+  background: #eef2f7;
+  color: #1c2434;
+}
+
+.btn-outline.btn-danger {
+  margin-right: auto;
+  color: #e11d48;
+  border-color: #fecdd3;
+}
+
+.chip svg {
+  width: 14px;
+  height: 14px;
+}
+
 .toast-region {
   position: fixed;
   left: 50%;

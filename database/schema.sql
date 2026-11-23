@@ -114,6 +114,7 @@ CREATE TABLE categories (
     parent_id integer REFERENCES categories (id),
     is_system boolean NOT NULL DEFAULT false,
     is_active boolean NOT NULL DEFAULT true,
+    sort_order smallint NOT NULL DEFAULT 0, -- kolejność na liście (domyślne kategorie: migracja 003)
     created_at timestamptz NOT NULL DEFAULT now(),
     updated_at timestamptz NOT NULL DEFAULT now()
 );

@@ -12,14 +12,6 @@ import {
 import { api, errorMessage } from '../api'
 import { convertFromPln, formatMoney, formatParts } from '../format'
 
-// dbId to id kategorii w bazie (tabela categories); tymczasowo na sztywno, dopóki API nie zwraca listy kategorii
-const CATEGORY_LIMITS = [
-  { id: 'jedzenie', dbId: 1, label: 'Jedzenie na mieście', color: 'green' },
-  { id: 'zakupy', dbId: 2, label: 'Zakupy spożywcze', color: 'green' },
-  { id: 'transport', dbId: 3, label: 'Transport', color: 'blue' },
-  { id: 'rozrywka', dbId: 4, label: 'Rozrywka (Subskrypcje)', color: 'green' },
-]
-
 // Tymczasowo jeden portfel osobisty, dopóki rejestracja nie tworzy go automatycznie
 const PERSONAL_HOUSEHOLD_ID = 1
 
@@ -29,7 +21,7 @@ const DAILY_SPENT = 18
 const CURRENCIES = ['PLN', 'EUR', 'USD']
 
 const EMPTY_EXPENSE = {
-  categoryId: CATEGORY_LIMITS[0].id,
+  categoryId: '',
   amount: '',
   transactionDate: new Date().toISOString().slice(0, 10),
   description: '',
@@ -41,6 +33,7 @@ export default function Dashboard({ firstName, onLogout }) {
   const [showAll, setShowAll] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [dashboard, setDashboard] = useState(null)
+  const [categories, setCategories] = useState([])
   const [isAddOpen, setAddOpen] = useState(false)
   const [expenseForm, setExpenseForm] = useState(EMPTY_EXPENSE)
   const [expenseError, setExpenseError] = useState('')
@@ -77,6 +70,9 @@ export default function Dashboard({ firstName, onLogout }) {
 
   useEffect(() => {
     loadDashboard()
+    api.categories().then((result) => {
+      if (result.ok) setCategories(result.data)
+    })
   }, [])
 
   // Krótki komunikat znika sam po 4 sekundach
@@ -90,9 +86,9 @@ export default function Dashboard({ firstName, onLogout }) {
   // Kategorie z limitem; "spent" to suma prawdziwych wydatków z bieżącego miesiąca (liczona w API)
   const activeLimits = (dashboard?.category_limits ?? []).filter((item) => item.limit != null)
   // Wszystkie kategorie dla formularza i okna limitów; brak wpisu w API = brak limitu
-  const categoryLimits = CATEGORY_LIMITS.map((cat) => {
-    const fromApi = activeLimits.find((item) => item.id === cat.id)
-    return { ...cat, spent: fromApi?.spent ?? 0, limit: fromApi?.limit ?? null }
+  const categoryLimits = categories.map((cat) => {
+    const fromApi = activeLimits.find((item) => item.id === cat.slug)
+    return { id: cat.slug, dbId: cat.id, label: cat.name, spent: fromApi?.spent ?? 0, limit: fromApi?.limit ?? null }
   })
   const totalParts = formatParts(convertFromPln(dashboard?.expenses ?? 0, currency))
   const visibleTransactions = showAll ? transactions : transactions.slice(0, 4)
@@ -106,7 +102,7 @@ export default function Dashboard({ firstName, onLogout }) {
   }
 
   function openAddExpense() {
-    setExpenseForm(EMPTY_EXPENSE)
+    setExpenseForm({ ...EMPTY_EXPENSE, categoryId: categoryLimits[0]?.id ?? '' })
     setExpenseError('')
     setLimitDraft(null)
     setAddOpen(true)
@@ -140,6 +136,7 @@ export default function Dashboard({ firstName, onLogout }) {
   }
 
   function renderLimitLine(cat) {
+    if (!cat) return null
     const hasLimit = cat.limit != null
     if (limitDraft?.id !== cat.id) {
       return (
@@ -202,7 +199,11 @@ export default function Dashboard({ firstName, onLogout }) {
       setExpenseError('Podaj datę wydatku.')
       return
     }
-    const category = CATEGORY_LIMITS.find((cat) => cat.id === expenseForm.categoryId)
+    const category = categoryLimits.find((cat) => cat.id === expenseForm.categoryId)
+    if (!category) {
+      setExpenseError('Wybierz kategorię.')
+      return
+    }
     // Zapis wydatku w bazie, potem odświeżenie pulpitu z API
     const result = await api.addExpense({
       amount,
@@ -504,7 +505,7 @@ export default function Dashboard({ firstName, onLogout }) {
                   value={expenseForm.categoryId}
                   onChange={(event) => updateExpenseField('categoryId', event.target.value)}
                 >
-                  {CATEGORY_LIMITS.map((cat) => (
+                  {categoryLimits.map((cat) => (
                     <option key={cat.id} value={cat.id}>
                       {cat.label}
                     </option>

@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import { Navigate, Route, Routes, useNavigate } from 'react-router-dom'
 import { api, refreshSession } from './api'
 import Dashboard from './pages/Dashboard'
+import Expenses from './pages/Expenses'
+import Subscriptions from './pages/Subscriptions'
 import ForgotPassword from './pages/ForgotPassword'
 import Login from './pages/Login'
 import Register from './pages/Register'
@@ -39,6 +41,8 @@ function App() {
   return (
     <Routes>
       <Route path="/" element={privatePage(<Dashboard firstName={user?.firstName} onLogout={handleLogout} />)} />
+      <Route path="/wydatki" element={privatePage(<Expenses />)} />
+      <Route path="/subskrypcje" element={privatePage(<Subscriptions />)} />
       <Route path="/raporty" element={privatePage(<Reports />)} />
       <Route path="/logowanie" element={guestPage(<Login onLogin={setUser} />)} />
       <Route path="/rejestracja" element={guestPage(<Register />)} />

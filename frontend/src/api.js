@@ -73,6 +73,13 @@ export const api = {
     request('/auth/reset-password', { method: 'POST', body: { token, password } }),
   dashboard: () => authed('/finances/dashboard'),
   addExpense: (body) => authed('/finances/expenses', { method: 'POST', body }),
+  categories: () => authed('/finances/categories'),
+  createCategory: (name, color) => authed('/finances/categories', { method: 'POST', body: { name, color } }),
+  updateCategory: (id, name, color) =>
+    authed(`/finances/categories/${id}`, { method: 'PATCH', body: { name, color } }),
+  deleteCategory: (id) => authed(`/finances/categories/${id}`, { method: 'DELETE' }),
+  expenses: (categoryId) =>
+    authed(categoryId == null ? '/finances/expenses' : `/finances/expenses?category_id=${categoryId}`),
   setLimit: (categoryId, body) => authed(`/finances/limits/${categoryId}`, { method: 'PUT', body }),
   deleteLimit: (categoryId) => authed(`/finances/limits/${categoryId}`, { method: 'DELETE' }),
   reports: (month) =>

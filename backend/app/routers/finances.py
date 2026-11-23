@@ -1,4 +1,6 @@
 import calendar
+import re
+import unicodedata
 from datetime import date, timedelta
 from typing import Optional
 from app.database import get_db
@@ -7,6 +9,9 @@ from app.models.transaction import Transaction
 from app.models.user import User
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from app.schemas.finances import (
+    CategoryCreate,
+    CategoryItem,
+    ExpenseListItem,
     ChartBarItem,
     DailyReportItem,
     DashboardData,
@@ -19,7 +24,7 @@ from app.schemas.finances import (
     CategoryLimitItem,
 )
 from app.security import get_current_user
-from sqlalchemy import extract, func
+from sqlalchemy import extract, func, or_
 from sqlalchemy.orm import Session
 
 router = APIRouter(prefix="/finances", tags=["Finances"])
@@ -94,7 +99,8 @@ def get_dashboard_data(
     limits = (
         db.query(CategoryLimit, Category.slug, Category.name)
         .join(Category, CategoryLimit.category_id == Category.id)
-        .filter(CategoryLimit.user_id == current_user.id)
+        # Limit usuniętej (nieaktywnej) kategorii zostaje w bazie, ale nie jest pokazywany
+        .filter(CategoryLimit.user_id == current_user.id, Category.is_active.is_(True))
         .all()
     )
 
@@ -192,6 +198,8 @@ def create_expense(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
+    if not visible_expense_categories(db, current_user).filter(Category.id == payload.category_id).first():
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Nie znaleziono kategorii.")
     new_tx = Transaction(
         household_id=payload.household_id,
         user_id=current_user.id,
@@ -210,6 +218,160 @@ def create_expense(
     return {"message": "Wydatek został pomyślnie dodany", "transaction_id": new_tx.id}
 
 
+def slugify(name: str) -> str:
+    """Zamienia nazwę kategorii na slug, np. 'Kawa i słodycze' -> 'kawa-i-slodycze'."""
+    # NFKD nie rozkłada litery „ł”, więc zamieniamy ją ręcznie
+    text = unicodedata.normalize("NFKD", name.lower().replace("ł", "l"))
+    text = text.encode("ascii", "ignore").decode()
+    return re.sub(r"[^a-z0-9]+", "-", text).strip("-") or "kategoria"
+
+
+def visible_expense_categories(db: Session, user: User):
+    """Aktywne kategorie wydatków widoczne dla użytkownika: systemowe i jego własne."""
+    return db.query(Category).filter(
+        Category.type == "Expense",
+        Category.is_active.is_(True),
+        or_(Category.is_system.is_(True), Category.user_id == user.id),
+    )
+
+
+@router.get("/categories", response_model=list[CategoryItem])
+def list_expense_categories(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Kategorie wydatków: najpierw domyślne w ustalonej kolejności, potem własne; z liczbą wydatków użytkownika."""
+    usage = (
+        db.query(Transaction.category_id, func.count(Transaction.id).label("usage_count"))
+        .filter(
+            Transaction.user_id == current_user.id,
+            Transaction.deleted_at.is_(None),
+            Transaction.type == "Expense",
+        )
+        .group_by(Transaction.category_id)
+        .subquery()
+    )
+    rows = (
+        visible_expense_categories(db, current_user)
+        .add_columns(func.coalesce(usage.c.usage_count, 0))
+        .outerjoin(usage, usage.c.category_id == Category.id)
+        .order_by(Category.is_system.desc(), Category.sort_order, Category.name)
+        .all()
+    )
+    return [
+        CategoryItem(
+            id=cat.id, slug=cat.slug, name=cat.name, usage_count=count, is_own=not cat.is_system, color=cat.color
+        )
+        for cat, count in rows
+    ]
+
+
+@router.post("/categories", response_model=CategoryItem, status_code=status.HTTP_201_CREATED)
+def create_expense_category(
+    payload: CategoryCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Tworzy własną kategorię wydatków użytkownika."""
+    slug = slugify(payload.name)
+    ensure_category_name_free(db, current_user, payload.name, slug)
+    category = Category(
+        user_id=current_user.id, name=payload.name, slug=slug, color=payload.color.lower(), type="Expense"
+    )
+    db.add(category)
+    db.commit()
+    db.refresh(category)
+    return CategoryItem(id=category.id, slug=category.slug, name=category.name, is_own=True, color=category.color)
+
+
+@router.patch("/categories/{category_id}", response_model=CategoryItem)
+def update_expense_category(
+    category_id: int,
+    payload: CategoryCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Zmienia nazwę i kolor własnej kategorii (domyślnych nie można edytować)."""
+    category = get_own_category(db, current_user, category_id)
+    slug = slugify(payload.name)
+    ensure_category_name_free(db, current_user, payload.name, slug, exclude_id=category.id)
+    category.name = payload.name
+    category.slug = slug
+    category.color = payload.color.lower()
+    db.commit()
+    return CategoryItem(id=category.id, slug=category.slug, name=category.name, is_own=True, color=category.color)
+
+
+@router.delete("/categories/{category_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_expense_category(
+    category_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Usuwa własną kategorię z list wyboru; nic nie jest kasowane — wydatki i limit zostają w bazie."""
+    category = get_own_category(db, current_user, category_id)
+    # Miękkie usunięcie, bo transakcje wskazują na kategorię; slug zwalniamy, żeby można było utworzyć ją ponownie
+    category.is_active = False
+    category.slug = f"{category.slug}--usunieta-{category.id}"
+    db.commit()
+
+
+def get_own_category(db: Session, user: User, category_id: int) -> Category:
+    """Aktywna własna kategoria wydatków użytkownika; domyślnych nie można zmieniać."""
+    category = db.get(Category, category_id)
+    if category is None or not category.is_active or category.type != "Expense":
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Nie znaleziono kategorii.")
+    if category.is_system:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Kategorii domyślnych nie można zmieniać.")
+    if category.user_id != user.id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Nie znaleziono kategorii.")
+    return category
+
+
+def ensure_category_name_free(db: Session, user: User, name: str, slug: str, exclude_id: Optional[int] = None):
+    """409, gdy widoczna kategoria ma już tę nazwę albo slug jest zajęty (indeks categories_user_id_slug_key)."""
+    name_query = visible_expense_categories(db, user).filter(func.lower(Category.name) == name.lower())
+    slug_query = db.query(Category).filter(Category.user_id == user.id, Category.slug == slug)
+    if exclude_id is not None:
+        name_query = name_query.filter(Category.id != exclude_id)
+        slug_query = slug_query.filter(Category.id != exclude_id)
+    if name_query.first() or slug_query.first():
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Taka kategoria już istnieje.")
+
+
+@router.get("/expenses", response_model=list[ExpenseListItem])
+def list_expenses(
+    category_id: Optional[int] = Query(None, description="Filtr: id kategorii"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Wydatki użytkownika od najnowszych, opcjonalnie tylko z jednej kategorii."""
+    query = (
+        db.query(Transaction, Category.name)
+        .join(Category, Transaction.category_id == Category.id)
+        .filter(
+            Transaction.user_id == current_user.id,
+            Transaction.deleted_at.is_(None),
+            Transaction.type == "Expense",
+        )
+    )
+    if category_id is not None:
+        query = query.filter(Transaction.category_id == category_id)
+    # shortcut: zawsze 100 najnowszych wydatków; dodać stronicowanie ("Pokaż starsze"), gdy lista urośnie
+    rows = query.order_by(Transaction.transaction_date.desc(), Transaction.created_at.desc()).limit(100).all()
+    return [
+        ExpenseListItem(
+            id=tx.id,
+            title=tx.description or cat_name,
+            category=cat_name,
+            category_id=tx.category_id,
+            transaction_date=tx.transaction_date,
+            amount=float(tx.amount),
+        )
+        for tx, cat_name in rows
+    ]
+
+
 @router.put("/limits/{category_id}")
 def set_category_limit(
     category_id: int,
@@ -221,6 +383,7 @@ def set_category_limit(
     category = db.get(Category, category_id)
     if (
         category is None
+        or not category.is_active
         or category.type != "Expense"
         or not (category.is_system or category.user_id == current_user.id)
     ):
